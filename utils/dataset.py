@@ -13,8 +13,14 @@ def set_datapath(dataset, numpy):
 
 
 def set_dataloader_usingcsv(dataset, csv_dir, template_path, batch_size, numpy=False, return_path=False):
-    train_dataset = MedicalImageDatasetCSV(f'{csv_dir}/{dataset}/{dataset}_train.csv', template_path, numpy=numpy, return_path=return_path)
-    val_dataset = MedicalImageDatasetCSV(f'{csv_dir}/{dataset}/{dataset}_valid.csv', template_path, numpy=numpy, return_path=return_path)
+    if numpy:
+        train_file = f'{csv_dir}/{dataset}/{dataset}_train_numpy.csv'
+        valid_file = f'{csv_dir}/{dataset}/{dataset}_valid_numpy.csv'
+    else:
+        train_file = f'{csv_dir}/{dataset}/{dataset}_train.csv'
+        valid_file = f'{csv_dir}/{dataset}/{dataset}_valid.csv'
+    train_dataset = MedicalImageDatasetCSV(train_file, template_path, numpy=numpy, return_path=return_path)
+    val_dataset = MedicalImageDatasetCSV(valid_file, template_path, numpy=numpy, return_path=return_path)
 
     # DataLoader
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)

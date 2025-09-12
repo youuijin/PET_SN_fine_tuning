@@ -45,11 +45,13 @@ class MrRegNet_Trainer(Trainer):
             if self.method == 'Mr':
                 deformed_img = apply_deformation_using_disp(cur_img, out)
                 deformed_segs = [apply_deformation_using_disp(s, out, mode='bilinear') for s in cur_img_segs]
+                self.disp_field = out
             elif self.method == 'Mr-diff':
                 # velocity field to deformation field
                 accumulate_disp = self.integrate(out)
                 deformed_img = apply_deformation_using_disp(cur_img, accumulate_disp)
                 deformed_segs = [apply_deformation_using_disp(s, out, mode='bilinear') for s in cur_img_segs]
+                self.disp_field = accumulate_disp
             
             # loss, sim_loss, smoo_loss = self.loss_fn(deformed_img, cur_template, res_out) #IMPORTANT: change out to res_out
             loss, sim_loss, tv_loss, dice_loss, suvr_loss = self.loss_fn(cur_img, cur_img_segs, deformed_img, deformed_segs, cur_template, cur_temp_segs, res_out, idx=i)
@@ -104,3 +106,6 @@ class MrRegNet_Trainer(Trainer):
             'Loss_suvr/res2':0.0,
             'Loss_suvr/res3':0.0
         }
+    
+    def get_disp(self):
+        return self.disp_field

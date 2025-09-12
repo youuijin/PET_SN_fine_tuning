@@ -4,6 +4,7 @@ import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+from scipy.interpolate import splprep, splev
 
 def set_seed(seed=0):
     """
@@ -246,3 +247,107 @@ def save_middle_slices_mfm(moving, fixed, moved, epoch, idx):
 def print_with_timestamp(string=""):
     timestamp = (datetime.now() + timedelta(hours=9)).strftime("[%Y-%m-%d %H:%M:%S]")
     print(timestamp, string)
+
+def save_grid_spline(disp, num_lines= 32, smoothness=0):
+    """
+    B-spline으로 부드러운 변형 grid 시각화
+    data: (Z, Y, X, 3) 또는 마지막 차원이 3이 아닌 경우 (3, Z, Y, X)로 가정
+    """
+    data = disp[0].cpu()
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    axis_order = ['x', 'y', 'z']
+    for k, slice_axis in enumerate(axis_order):
+        ax = axes[k]
+        # 1) torch.Tensor -> numpy 로 강제 변환
+        if hasattr(data, "detach"):         # torch.Tensor인 경우
+            data = data.detach().cpu().numpy()
+        else:
+            data = np.asarray(data)         # 그 외 배열류 안전 변환
+        # data shape 정규화: (Z, Y, X, 3)
+        if data.shape[-1] != 3:
+            # 흔한 케이스: (3, Z, Y, X) -> (Z, Y, X, 3)
+            if data.shape[0] == 3:
+                data = np.moveaxis(data, 0, -1)
+            else:
+                data = np.transpose(data, (1, 2, 3, 0))
+
+        Z, Y, X, _ = data.shape
+
+        # 슬라이스 인덱스 안전 처리
+        if slice_axis == 'z':
+            slice_index = Z // 2
+        elif slice_axis == 'y':
+            slice_index = Y // 2
+        elif slice_axis == 'x':
+            slice_index = X // 2
+        else:
+            raise ValueError("slice_axis must be one of 'x', 'y', or 'z'")
+
+        # 슬라이스 추출 & (행,열,3) = (H,W,3) 형태로 명시적 구성
+        if slice_axis == 'z':      # 평면: X–Y
+            disp = data[slice_index, :, :, :]        # (Y, X, 3)
+            H, W = Y, X
+            dx, dy = disp[:, :, 0], disp[:, :, 1]
+
+        elif slice_axis == 'y':    # 평면: X–Z
+            disp = data[:, slice_index, :, :]        # (Z, X, 3)
+            H, W = Z, X
+            dx, dy = disp[:, :, 0], disp[:, :, 2]
+
+        elif slice_axis == 'x':    # 평면: Y–Z
+            disp = data[:, :, slice_index, :]        # (Z, Y, 3)
+            H, W = Z, Y
+            dx, dy = disp[:, :, 1], disp[:, :, 2]
+
+        else:
+            raise ValueError("slice_axis must be one of 'x', 'y', or 'z'")
+
+
+        # 배열 인덱싱과 일치하도록 ij 인덱싱 사용
+        grid_y, grid_x = np.meshgrid(np.arange(H), np.arange(W), indexing='ij')
+        warped_x = grid_x + dx
+        warped_y = grid_y + dy
+
+        # num_lines 반영 (가로/세로 각 num_lines)
+        # row_indices = np.linspace(0, H - 1, num=min(num_lines, H), dtype=int)
+        # col_indices = np.linspace(0, W - 1, num=min(num_lines, W), dtype=int)
+        row_indices = np.linspace(0, H - 1, num=H//2, dtype=int)
+        col_indices = np.linspace(0, W - 1, num=W//2, dtype=int)
+
+        # 가로선
+        for i in row_indices:
+            x_line = warped_x[i, :]
+            y_line = warped_y[i, :]
+            sx, sy = spline_line(x_line, y_line, smoothness)
+            # ax.plot(sx, sy, 'r-')
+            xr, yr = _rot90ccw_flip_lr(sx, sy, H, W)
+            ax.plot(xr, yr, 'r-', linewidth=0.8)
+
+        # 세로선
+        for j in col_indices:
+            x_line = warped_x[:, j]
+            y_line = warped_y[:, j]
+            sx, sy = spline_line(x_line, y_line, smoothness)
+            # ax.plot(sx, sy, 'r-') # 원본 그대로
+            xr, yr = _rot90ccw_flip_lr(sx, sy, H, W)
+            ax.plot(xr, yr, 'r-', linewidth=0.8)
+
+        ax.invert_yaxis()  # 이미지 좌표계 일치
+        ax.set_aspect('equal', adjustable='box')
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.set_title(f"{slice_axis.upper()}-slice @ {slice_index}")
+
+    fig.tight_layout(pad=0.1, w_pad=0.05, h_pad=0.05)
+
+    return fig
+
+def _rot90ccw_flip_lr(x, y, H, W):
+    xr = (H - 1) - y
+    yr = (W - 1) - x
+    return xr, yr
+
+def spline_line(x, y, smoothness=0, num_points=100):
+    """주어진 점들을 spline으로 부드럽게 연결"""
+    tck, _ = splprep([x, y], s=smoothness)
+    new_points = splev(np.linspace(0, 1, num_points), tck)
+    return new_points[0], new_points[1]

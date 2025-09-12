@@ -3,7 +3,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from networks.network_utils import set_model
 from utils.dataset import set_dataloader_usingcsv, set_datapath, set_paired_dataloader_usingcsv
-from utils.utils import set_seed, save_middle_slices, save_middle_slices_mfm, print_with_timestamp
+from utils.utils import set_seed, save_middle_slices, save_middle_slices_mfm, print_with_timestamp, save_grid_spline
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -151,6 +151,7 @@ class Trainer:
 
             # forward & calculate loss in child trainer
             _, deformed_img, deformed_segs = self.forward(img, template, stacked_input, img_segs, temp_segs, epoch, val=True)
+            disp = self.get_disp()
 
             fig = save_middle_slices_mfm(img, template, deformed_img, epoch, idx)
             self.writer.add_figure(f'deformed_slices_img{idx}', fig, epoch)
@@ -160,6 +161,10 @@ class Trainer:
                 fig = save_middle_slices_mfm(img_seg, temp_seg, deformed_seg, epoch, idx)
                 self.writer.add_figure(f'deformed_slices_img{idx}_seg{name}', fig, epoch)
                 plt.close(fig)
+
+            fig = save_grid_spline(disp)
+            self.writer.add_figure(f'disps_img{idx}', fig, epoch)
+            plt.close(fig)
 
         print_with_timestamp(f'Epoch {epoch}: Successfully saved {num} images')
 

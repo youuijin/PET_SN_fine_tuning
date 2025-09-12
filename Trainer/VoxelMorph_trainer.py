@@ -29,11 +29,13 @@ class VoxelMorph_Trainer(Trainer):
         if self.method == 'VM':
             deformed_img = apply_deformation_using_disp(img, out)
             deformed_segs = [apply_deformation_using_disp(s, out, mode='bilinear') for s in img_segs] # Important! : using bilinear interpolation to get gradient
+            self.disp_field = out
         elif self.method == 'VM-diff':
             # velocity field to deformation field
             accumulate_disp = self.integrate(out)
             deformed_img = apply_deformation_using_disp(img, accumulate_disp)
             deformed_segs = [apply_deformation_using_disp(s, accumulate_disp, mode='bilinear') for s in img_segs]
+            self.disp_field = accumulate_disp
         
         loss, sim_loss, tv_loss, dice_loss, suvr_loss = self.loss_fn(img, img_segs, deformed_img, deformed_segs, template, temp_segs, out)
         # print(sim_loss, tv_loss, dice_loss, suvr_loss)
@@ -69,3 +71,6 @@ class VoxelMorph_Trainer(Trainer):
             'Loss_dice':0.0,
             'Loss_suvr':0.0
         }
+
+    def get_disp(self):
+        return self.disp_field

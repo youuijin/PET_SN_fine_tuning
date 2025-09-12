@@ -48,31 +48,20 @@ def run_all():
     base_args.epochs = 100
     base_args.model = 'U_Net'
     base_args.loss = 'none'
-    base_args.pretrained_path = 'pretrained_models/OASIS/pair/VM-diff_NCC(tv_24.0)_epochs400_07-02_01-02_last.pt'
+    base_args.pretrained_path = 'pretrained_models/OASIS/pair/Mr-diff_NCC(tv_28.0_sca0.5)_epochs400_08-12_10-06_best.pt'
 
     base_args.numpy = True
-    base_args.pair_train = True
+    base_args.template_path = 'data/core_MNI152_PET_1mm.npy'
+    # base_args.pair_train = True
     # base_args.freeze = True
 
     configs = [
-        ("VM-diff", 0.5, 0.1, 0.1, None),
-        ("VM-diff", 0.5, 0.5, 0.1, None),
-        ("VM-diff", 0.5, 1.0, 0.1, None),
-        ("VM-diff", 0.5, 0.1, 1.0, None),
-        ("VM-diff", 0.5, 0.5, 1.0, None),
-        ("VM-diff", 0.5, 1.0, 1.0, None),
-        ("VM-diff", 0.5, 0.1, 0.5, None),
-        ("VM-diff", 0.5, 0.5, 0.5, None),
-        ("VM-diff", 0.5, 1.0, 0.5, None),
-        ("VM-diff", 1.0, 0.1, 0.1, None),
-        ("VM-diff", 1.0, 0.5, 0.1, None),
-        ("VM-diff", 1.0, 1.0, 0.1, None),
-        ("VM-diff", 1.0, 0.1, 1.0, None),
-        ("VM-diff", 1.0, 0.5, 1.0, None),
-        ("VM-diff", 1.0, 1.0, 1.0, None),
-        ("VM-diff", 1.0, 0.1, 0.5, None),
-        ("VM-diff", 1.0, 0.5, 0.5, None),
-        ("VM-diff", 1.0, 1.0, 0.5, None),
+        ("Mr-diff", 0.5, 0.1, 0.1, None),
+        ("Mr-diff", 0.5, 0.5, 0.1, None),
+        ("Mr-diff", 0.5, 1.0, 0.1, None),
+        ("Mr-diff", 0.5, 0.1, 0.5, None),
+        ("Mr-diff", 0.5, 0.5, 0.5, None),
+        ("Mr-diff", 0.5, 1.0, 0.5, None),
     ]
     for method, alpha_tv, alpha_dice, alpha_suvr, freeze_type in configs:
         args = copy.deepcopy(base_args)
