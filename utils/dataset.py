@@ -5,6 +5,8 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import csv, random
 
+from utils.data_augmentation import IntensityAug
+
 def set_datapath(dataset, numpy):
     if numpy:
         return './data/FDG_PET_percent_numpy', None
@@ -12,15 +14,15 @@ def set_datapath(dataset, numpy):
         return './data/FDG_PET_percent', None
 
 
-def set_dataloader_usingcsv(dataset, csv_dir, template_path, batch_size, numpy=False, return_path=False):
+def set_dataloader_usingcsv(dataset, csv_dir, template_path, batch_size, numpy=False, return_path=False, transform=False):
     if numpy:
         train_file = f'{csv_dir}/{dataset}/{dataset}_train_numpy.csv'
         valid_file = f'{csv_dir}/{dataset}/{dataset}_valid_numpy.csv'
     else:
         train_file = f'{csv_dir}/{dataset}/{dataset}_train.csv'
         valid_file = f'{csv_dir}/{dataset}/{dataset}_valid.csv'
-    train_dataset = MedicalImageDatasetCSV(train_file, template_path, numpy=numpy, return_path=return_path)
-    val_dataset = MedicalImageDatasetCSV(valid_file, template_path, numpy=numpy, return_path=return_path)
+    train_dataset = MedicalImageDatasetCSV(train_file, template_path, numpy=numpy, return_path=return_path, transform=transform)
+    val_dataset = MedicalImageDatasetCSV(valid_file, template_path, numpy=numpy, return_path=return_path, transform=False)
 
     # DataLoader
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -63,7 +65,7 @@ def set_paired_dataloader_usingcsv(dataset, csv_dir, batch_size=1, numpy=True, r
 
 # Define dataset class
 class MedicalImageDatasetCSV(Dataset):
-    def __init__(self, csv_path, template_path, numpy=False, transform=None, return_path=False):
+    def __init__(self, csv_path, template_path, numpy=False, transform=False, return_path=False):
         # if return_mask and mask_path is None:
         #     return ValueError('If you want to use brain mask, Enter mask path.')
         
@@ -91,6 +93,8 @@ class MedicalImageDatasetCSV(Dataset):
         self.return_path = return_path
         self.seg_path = 'data/FDG_label_cortex_mask'
 
+        self.augment = IntensityAug()
+
         # load segments
         self.temp_seg = []
         for i in range(6):
@@ -112,6 +116,7 @@ class MedicalImageDatasetCSV(Dataset):
 
         img_min, img_max = img.min(), img.max()
         img = (img - img_min) / (img_max - img_min)  # Normalize to [0,1]#
+        img = torch.from_numpy(img)
 
         # Load segments
         # load segments
@@ -121,15 +126,16 @@ class MedicalImageDatasetCSV(Dataset):
             seg = nib.load(seg_path).get_fdata().astype(np.float32)
             img_seg.append(torch.from_numpy(seg))
 
-        if self.transform is not None:
-            img = self.transform(img)
+
+        if self.transform:
+            img = self.augment(img, geo=False)
 
         # return format
         ## img, template, img_min, img_max, affine matrix, img_segs, temp_segs
         if self.return_path:
-            return torch.from_numpy(img), torch.from_numpy(self.template), img_min, img_max, affine, self.image_paths[idx]
+            return img, torch.from_numpy(self.template), img_min, img_max, affine, self.image_paths[idx]
  
-        return torch.from_numpy(img), torch.from_numpy(self.template), img_min, img_max, affine, img_seg, self.temp_seg
+        return img, torch.from_numpy(self.template), img_min, img_max, affine, img_seg, self.temp_seg
 
 class RandomInterPatientDataset(Dataset):
     def __init__(self, image_paths, numpy=True, return_path=False):

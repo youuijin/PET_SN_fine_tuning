@@ -9,13 +9,17 @@ class VoxelMorph_Trainer(Trainer):
         assert args.method in ['VM', 'VM-diff']
         # setting log name first!
         self.log_name = f'{args.method}_{args.loss}(seg_tv{args.alpha_tv}_dice{args.alpha_dice}_suvr{args.alpha_suvr})'
+        if args.transition:
+            self.log_name = f'{args.method}_{args.loss}-Trans{args.transition_period}(seg_tv{args.alpha_tv}_dice{args.alpha_dice}_suvr{args.alpha_suvr})'
         self.method = args.method
 
         self.args = args
         self.out_channels = 3
         self.out_layers = 1
 
-        self.loss_fn = PET_Loss(args.loss, args.alpha_tv, args.alpha_dice, args.alpha_suvr)
+        self.loss_fn = PET_Loss(args.loss, args.alpha_tv, args.alpha_dice, args.alpha_suvr, transition=args.transition)
+        self.transition = args.transition
+        self.transition_period = args.transition_period
         self.reset_logs()
 
         if 'diff' in args.method:
@@ -36,6 +40,9 @@ class VoxelMorph_Trainer(Trainer):
             deformed_img = apply_deformation_using_disp(img, accumulate_disp)
             deformed_segs = [apply_deformation_using_disp(s, accumulate_disp, mode='bilinear') for s in img_segs]
             self.disp_field = accumulate_disp
+
+        if self.transition:
+            self.loss_fn.trans_alpha = min(1/(self.transition_period*self.epochs)*epoch, 1.0)
         
         loss, sim_loss, tv_loss, dice_loss, suvr_loss = self.loss_fn(img, img_segs, deformed_img, deformed_segs, template, temp_segs, out)
         # print(sim_loss, tv_loss, dice_loss, suvr_loss)
@@ -45,6 +52,7 @@ class VoxelMorph_Trainer(Trainer):
         self.log_dict['Loss_tv'] += tv_loss
         self.log_dict['Loss_dice'] += dice_loss
         self.log_dict['Loss_suvr'] += suvr_loss
+        self.log_dict['trans'] += self.loss_fn.trans_alpha
         
         return loss, deformed_img, deformed_segs
 
@@ -69,7 +77,8 @@ class VoxelMorph_Trainer(Trainer):
             'Loss_sim':0.0,
             'Loss_tv':0.0,
             'Loss_dice':0.0,
-            'Loss_suvr':0.0
+            'Loss_suvr':0.0,
+            'trans':1.0
         }
 
     def get_disp(self):

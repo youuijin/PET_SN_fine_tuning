@@ -29,6 +29,8 @@ class Trainer:
             self.log_name = f'{self.log_name}_epochs{args.epochs}'
         if args.lr_scheduler == 'multistep':
             self.log_name = f'{self.log_name}_sche(multi_{args.lr_milestones})'
+        if args.transform:
+            self.log_name = f'{self.log_name}_aug'
 
         # add start time
         now = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%m-%d_%H-%M")
@@ -44,10 +46,10 @@ class Trainer:
 
         # self.train_data_path, self.val_data_path = set_datapath(args.dataset, args.numpy)
         if not args.pair_train:
-            self.train_loader, self.val_loader, self.save_loader = set_dataloader_usingcsv(args.dataset, 'data/data_list', args.template_path, args.batch_size, numpy=args.numpy)
+            self.train_loader, self.val_loader, self.save_loader = set_dataloader_usingcsv(args.dataset, 'data/data_list', args.template_path, args.batch_size, numpy=args.numpy, transform=args.transform)
             self.save_dir = f'./results/template/saved_models/{args.dataset}/{args.model}'
         else:
-            self.train_loader, self.val_loader, self.save_loader = set_paired_dataloader_usingcsv(args.dataset, 'data/data_list', args.batch_size, numpy=args.numpy)
+            self.train_loader, self.val_loader, self.save_loader = set_paired_dataloader_usingcsv(args.dataset, 'data/data_list', args.batch_size, numpy=args.numpy, transform=args.transform)
             self.save_dir = f'./results/pair/saved_models/{args.dataset}/{args.model}'
         
         os.makedirs(f'{self.save_dir}/completed', exist_ok=True)

@@ -44,7 +44,7 @@ class Train_Loss:
         return tot_loss, sim_loss.item(), reg_loss.item()
 
 class PET_Loss:
-    def __init__(self, loss, alpha_tv=1.0, alpha_dice=1.0, alpha_suvr=1.0, alpha_scale=1.0, scale_fn='exp'):
+    def __init__(self, loss, alpha_tv=1.0, alpha_dice=1.0, alpha_suvr=1.0, alpha_scale=1.0, scale_fn='exp', transition=False):
         if loss == 'MSE':
             self.loss_fn_sim = MSE_loss
         elif loss == 'NCC':
@@ -62,6 +62,9 @@ class PET_Loss:
         # scale factor for multi-resolution method
         self.alpha_scale = alpha_scale
         self.scale_fn = scale_fn
+
+        self.transition = transition
+        self.trans_alpha = 0. # to calculate alpha
 
     def none_fn(self, moved_pet, fixed_pet):
         return torch.tensor(0.0).to(moved_pet.device)
@@ -262,5 +265,9 @@ class PET_Loss:
         alpha_dice = self.alpha_dice * (self.alpha_scale**(-idx)) ## larger
         alpha_suvr = self.alpha_suvr * (self.alpha_scale**(-idx)) ## larger
 
-        tot_loss = sim_loss + alpha_tv*tv_loss + alpha_dice*dice_loss + alpha_suvr*suvr_loss
+        if not self.transition:
+            tot_loss = sim_loss + alpha_tv*tv_loss + alpha_dice*dice_loss + alpha_suvr*suvr_loss
+        else:
+            tot_loss = (1-self.trans_alpha)*sim_loss + self.trans_alpha*(alpha_tv*tv_loss + alpha_dice*dice_loss + alpha_suvr*suvr_loss)
+
         return tot_loss, sim_loss.item(), tv_loss.item(), dice_loss.item(), suvr_loss.item()
